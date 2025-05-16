@@ -178,4 +178,4 @@ cython_debug/
 
 # Project specific
 audiences.csv
-available-seats
+available-seats.json
