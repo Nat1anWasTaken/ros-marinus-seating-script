@@ -6,7 +6,7 @@
 
 本腳本會自動處理音樂會或類似活動的座位分配。它會：
 
-1. 從 `available-seats.jsonc` 讀取可用的座位區塊和座位。
+1. 從 `available-seats.json` 讀取可用的座位區塊和座位。
 2. 從 `audiences.csv` 讀取觀眾的劃位請求，並依照時間戳記排序。
 3. 根據請求時間的先後順序，為觀眾分配座位。
 4. 在終端機印出劃位結果。
@@ -14,48 +14,22 @@
 
 ## 依賴套件
 
-本腳本需要 `commentjson` 套件來讀取 `available-seats.jsonc` 檔案（因其支援 JSONC 格式中的註解）。
-
-在執行腳本前，請先安裝此套件：
-
-```bash
-pip install commentjson
-```
+本腳本不再需要 `commentjson` 套件。
 
 ## 輸入檔案
 
 腳本需要以下兩個檔案才能運作，且必須放在與 `main.py` 相同的目錄下：
 
-### 1. `available-seats.jsonc`
+### 1. `available-seats.json`
 
-此檔案定義了可用的座位區塊及各區塊中的座位。它是一個 JSONC 檔案（JSON with Comments）。
+此檔案定義了可用的座位區塊及各區塊中的座位。它是一個 JSON 檔案。
 
 **格式範例：**
 
-```jsonc
+```json
 {
-  "block-1": [
-    // 第一區塊
-    "A1",
-    "A2",
-    "A3",
-    "A4",
-    "A5",
-    "B1",
-    "B2",
-    "B3",
-    "B4",
-    "B5"
-  ],
-  "block-2": [
-    // 第二區塊
-    "C1",
-    "C2",
-    "C3",
-    "D1",
-    "D2",
-    "D3"
-  ]
+  "block-1": ["A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5"],
+  "block-2": ["C1", "C2", "C3", "D1", "D2", "D3"]
   // 可以有更多區塊...
 }
 ```
@@ -97,7 +71,7 @@ python main.py
 
 執行後，腳本會：
 
-1.  提示 `available-seats.jsonc` 和 `audiences.csv` 的讀取情況。
+1.  提示 `available-seats.json` 和 `audiences.csv` 的讀取情況。
 2.  顯示座位分配的過程。
 3.  在終端機印出詳細的劃位結果，包括每個區塊的劃位情況以及無法劃位的請求。
 4.  最後，會提示您輸入一個檔名，以將結果匯出成 CSV 檔案。若未輸入檔名，則會跳過匯出步驟。如果輸入的檔名不以 `.csv` 結尾，腳本會自動添加。

@@ -1,7 +1,7 @@
 import csv
-import commentjson
-from datetime import datetime
+import json
 from collections import OrderedDict
+from datetime import datetime
 
 
 # Helper function to parse timestamps from the CSV
@@ -38,18 +38,20 @@ def parse_timestamp(ts_str):
         return datetime.max
 
 
-def load_available_seats(filepath="available-seats.jsonc"):
-    """Loads available seats from a JSONC file."""
+def load_available_seats(filepath="available-seats.json"):  # Changed default filename
+    """Loads available seats from a JSON file."""  # Updated docstring
     try:
         with open(filepath, "r", encoding="utf-8") as f:
-            data = commentjson.load(f)
+            data = json.load(f)  # Use json.load
 
         # Sort block names by the number in their name (e.g., "block-1", "block-2")
         sorted_block_names = sorted(data.keys(), key=lambda k: int(k.split("-")[1]))
 
         available_seats_ordered = OrderedDict()
         for block_name in sorted_block_names:
-            available_seats_ordered[block_name] = list(data[block_name])  # Ensure it's a list
+            available_seats_ordered[block_name] = list(
+                data[block_name]
+            )  # Ensure it's a list
         return available_seats_ordered
     except FileNotFoundError:
         print(f"Error: File '{filepath}' not found.")
@@ -67,7 +69,7 @@ def load_audience_requests(filepath="audiences.csv"):
             filepath, "r", encoding="utf-8-sig"
         ) as f:  # Use utf-8-sig to handle potential BOM
             reader = csv.reader(f)
-            header = next(reader)  # Skip header
+            next(reader)  # Skip header, header is not used
 
             # Column indices (based on the provided CSV structure)
             # Allocation Time: 0, Your Identity: 1, Member Name: 2, Ticket Holder Name: 3, Copiable: 4, Instrument: 5, Number of Tickets: 6, Pickup Method: 7
@@ -103,7 +105,9 @@ def load_audience_requests(filepath="audiences.csv"):
                     else:
                         num_tickets = int(num_tickets_str)
 
-                    if num_tickets <= 0:  # Skip requests for 0 or invalid number of tickets
+                    if (
+                        num_tickets <= 0
+                    ):  # Skip requests for 0 or invalid number of tickets
                         continue
 
                     pickup_method = row[idx_pickup_method].strip()
@@ -153,7 +157,9 @@ def assign_seats(audience_requests, available_seats_ordered):
             if len(seats_in_block) >= num_tickets_needed:
                 temp_assigned_seats_info = []
                 for _ in range(num_tickets_needed):
-                    seat = seats_in_block.pop(0)  # Take a seat from the front of this block
+                    seat = seats_in_block.pop(
+                        0
+                    )  # Take a seat from the front of this block
                     seat_info = {
                         "seat_number": seat,
                         "member_name": request["member_name"],
@@ -220,10 +226,7 @@ def main():
     """Main function to execute the seating script."""
     print("Starting seating script execution...\n")
 
-    print("Note: This script depends on the `commentjson` module to read `available-seats.jsonc`.")
-    print("If not installed, please install it via `pip install commentjson`.\n")
-
-    available_seats_file = "available-seats.jsonc"
+    available_seats_file = "available-seats.json"  # Changed filename
     audience_file = "audiences.csv"
 
     # 1. Load available seats
@@ -237,7 +240,9 @@ def main():
     print(f"\nReading audience requests from '{audience_file}'...")
     audience_requests = load_audience_requests(audience_file)
     if not audience_requests:
-        print("Could not read any valid audience requests (or all requests were for 0 tickets). Script terminated.")
+        print(
+            "Could not read any valid audience requests (or all requests were for 0 tickets). Script terminated."
+        )
         return
 
     # 3. Assign seats
@@ -251,11 +256,13 @@ def main():
     format_and_print_results(assigned_seats, unassigned_requests)
 
     # 5. Ask for and export results to CSV
-    output_csv_filename = input("\nPlease enter the filename for the CSV export (e.g., output.csv): ").strip()
+    output_csv_filename = input(
+        "\nPlease enter the filename for the CSV export (e.g., output.csv): "
+    ).strip()
     if not output_csv_filename:
         print("No valid filename provided. CSV export will be skipped.")
     else:
-        if not output_csv_filename.lower().endswith('.csv'):
+        if not output_csv_filename.lower().endswith(".csv"):
             output_csv_filename += ".csv"
         print(f"\nExporting results to '{output_csv_filename}'...")
         export_results_to_csv(assigned_seats, unassigned_requests, output_csv_filename)
@@ -267,15 +274,15 @@ def main():
 def export_results_to_csv(assigned_seats_by_block, unassigned_requests, filename):
     """Exports the seating results to a CSV file."""
     try:
-        with open(filename, "w", newline='', encoding='utf-8-sig') as csvfile:
+        with open(filename, "w", newline="", encoding="utf-8-sig") as csvfile:
             fieldnames = [
-                'Block',
-                'Seat Number',
-                'Member Name',
-                'Ticket Holder Name',
-                'Number of Tickets',  # Added for unassigned requests
-                'Pickup Method',
-                'Allocation Time'
+                "Block",
+                "Seat Number",
+                "Member Name",
+                "Ticket Holder Name",
+                "Number of Tickets",  # Added for unassigned requests
+                "Pickup Method",
+                "Allocation Time",
             ]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -284,32 +291,48 @@ def export_results_to_csv(assigned_seats_by_block, unassigned_requests, filename
             for block_name, assignments in assigned_seats_by_block.items():
                 block_display_name = block_name.replace("block-", "Block ")
                 for assignment in assignments:
-                    writer.writerow({
-                        'Block': block_display_name,
-                        'Seat Number': assignment['seat_number'],
-                        'Member Name': assignment.get('member_name', ''),
-                        'Ticket Holder Name': assignment['ticket_holder_name'],
-                        'Number of Tickets': 1,  # Each assigned seat counts as one
-                        'Pickup Method': assignment.get('pickup_method', ''),
-                        'Allocation Time': assignment['timestamp'].strftime('%Y/%m/%d %H:%M:%S') if assignment.get('timestamp') else ''
-                    })
-            
+                    writer.writerow(
+                        {
+                            "Block": block_display_name,
+                            "Seat Number": assignment["seat_number"],
+                            "Member Name": assignment.get("member_name", ""),
+                            "Ticket Holder Name": assignment["ticket_holder_name"],
+                            "Number of Tickets": 1,  # Each assigned seat counts as one
+                            "Pickup Method": assignment.get("pickup_method", ""),
+                            "Allocation Time": assignment["timestamp"].strftime(
+                                "%Y/%m/%d %H:%M:%S"
+                            )
+                            if assignment.get("timestamp")
+                            else "",
+                        }
+                    )
+
             # Write unassigned requests
             if unassigned_requests:
                 for req in unassigned_requests:
-                    writer.writerow({
-                        'Block': 'N/A (Unassigned)',
-                        'Seat Number': 'N/A',
-                        'Member Name': req.get('member_name', ''),
-                        'Ticket Holder Name': req['ticket_holder_name'],
-                        'Number of Tickets': req['num_tickets'],
-                        'Pickup Method': req.get('pickup_method', ''),
-                        'Allocation Time': req['timestamp'].strftime('%Y/%m/%d %H:%M:%S') if req.get('timestamp') else ''
-                    })
+                    writer.writerow(
+                        {
+                            "Block": "N/A (Unassigned)",
+                            "Seat Number": "N/A",
+                            "Member Name": req.get("member_name", ""),
+                            "Ticket Holder Name": req["ticket_holder_name"],
+                            "Number of Tickets": req["num_tickets"],
+                            "Pickup Method": req.get("pickup_method", ""),
+                            "Allocation Time": req["timestamp"].strftime(
+                                "%Y/%m/%d %H:%M:%S"
+                            )
+                            if req.get("timestamp")
+                            else "",
+                        }
+                    )
     except IOError:
-        print(f"Error: Could not write to file '{filename}'. Please check permissions or path.")
+        print(
+            f"Error: Could not write to file '{filename}'. Please check permissions or path."
+        )
     except Exception as e:
-        print(f"Error: An unknown error occurred while exporting CSV to '{filename}': {e}")
+        print(
+            f"Error: An unknown error occurred while exporting CSV to '{filename}': {e}"
+        )
 
 
 if __name__ == "__main__":
