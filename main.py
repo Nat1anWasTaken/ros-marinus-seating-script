@@ -308,10 +308,10 @@ def assign_seats(
             unassigned_requests.append(request)
             # print(f"Info: Could not find enough seats in the same block for '{request_holder_name}' (Time: {request_timestamp.strftime('%Y/%m/%d %H:%M:%S') if request_timestamp and request_timestamp != datetime.max else 'Invalid/Max'}) for {num_tickets_needed} tickets.")
 
-    return assigned_seats_by_block, unassigned_requests
+    return assigned_seats_by_block, unassigned_requests, available_seats_ordered
 
 
-def format_and_print_results(assigned_seats_by_block, unassigned_requests):
+def format_and_print_results(assigned_seats_by_block, unassigned_requests, remaining_seats_by_block):
     """Formats and prints the seating assignment results."""
     print("--- Seating Assignment Results ---")
     any_seat_assigned = False
@@ -352,6 +352,18 @@ def format_and_print_results(assigned_seats_by_block, unassigned_requests):
                 f"- Ticket Holder: {req['ticket_holder_name']}, Tickets: {req['num_tickets']}, Time: {req['timestamp'].strftime('%Y/%m/%d %H:%M:%S')} (Original CSV Row: {req.get('original_row_num', 'N/A')})"
             )
 
+    print("\n--- Remaining Available Seats ---")
+    total_remaining_seats = 0
+    if remaining_seats_by_block:
+        for block_name, seats in remaining_seats_by_block.items():
+            count = len(seats)
+            total_remaining_seats += count
+            block_display_name = block_name.replace("block-", "Block ")
+            print(f"{block_display_name}: {count} seat(s) remaining")
+        print(f"\nTotal remaining seats: {total_remaining_seats}")
+    else:
+        print("No remaining seats information available (or all seats taken).")
+
 
 def main():
     """Main function to execute the seating script."""
@@ -385,7 +397,7 @@ def main():
 
     # 3. Assign seats
     print("\nAssigning seats...")
-    assigned_seats, unassigned_requests = assign_seats(
+    assigned_seats, unassigned_requests, remaining_seats = assign_seats(
         audience_requests,
         available_seats,
         preserved_seats,  # Pass preserved_seats
@@ -393,7 +405,7 @@ def main():
     print("Seat assignment complete.\n")
 
     # 4. Format and print results
-    format_and_print_results(assigned_seats, unassigned_requests)
+    format_and_print_results(assigned_seats, unassigned_requests, remaining_seats)
 
     # 5. Ask for and export results to CSV
     output_csv_filename = input(
