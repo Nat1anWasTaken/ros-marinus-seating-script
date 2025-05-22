@@ -202,54 +202,39 @@ def assign_seats(
 ):  # Added preserved_seats
     """Assigns seats to audience requests, considering preserved seats."""
     assigned_seats_by_block = OrderedDict()
-    for (
-        block_name_key_init
-    ) in available_seats_ordered.keys():  # Initialize for all available blocks
+    for block_name_key_init in available_seats_ordered.keys():
         assigned_seats_by_block[block_name_key_init] = []
 
     # Step 1: Account for preserved seats - remove from available and add to final assignments
-    # Also, build a lookup for checking if audience requests are covered by these.
-    # Key: (ticket_holder_name, allocation_time_datetime_object)
-    # Value: count of tickets preserved for this key
-    preserved_tickets_lookup = {}
-
+    # Build a set of (block, seat_number) for quick lookup
+    preserved_seat_set = set()
     if preserved_seats:
         for ps in preserved_seats:
             block_name = ps["block"]
             seat_num = ps["seat_number"]
-
+            preserved_seat_set.add((block_name, seat_num))
             # Add to assigned_seats_by_block to include in output
-            # This ensures preserved seats are always in the "assigned" list.
             assigned_seats_by_block.setdefault(block_name, []).append(
                 {
                     "seat_number": seat_num,
                     "member_name": ps["member_name"],
                     "ticket_holder_name": ps["ticket_holder_name"],
                     "pickup_method": ps["pickup_method"],
-                    "timestamp": ps[
-                        "allocation_time"
-                    ],  # This is the original allocation time
+                    "timestamp": ps["allocation_time"],
                 }
             )
-
             # Remove from available_seats_ordered
             if block_name in available_seats_ordered:
                 if seat_num in available_seats_ordered[block_name]:
                     available_seats_ordered[block_name].remove(seat_num)
-                else:  # Seat not in the specific list of available seats for that block
+                else:
                     print(
                         f"Warning: Preserved seat {seat_num} in {block_name} not found in available seat list for that block. It might have been removed or changed, or block name mismatch."
                     )
-            else:  # Block itself not in available_seats_ordered
+            else:
                 print(
                     f"Warning: Block {block_name} for preserved seat {seat_num} not found in available seat blocks."
                 )
-
-            # Populate the lookup for request matching
-            # Only consider preserved seats with valid allocation times for this matching logic
-            if ps["allocation_time"] and ps["allocation_time"] != datetime.max:
-                key = (ps["ticket_holder_name"], ps["allocation_time"])
-                preserved_tickets_lookup[key] = preserved_tickets_lookup.get(key, 0) + 1
 
     unassigned_requests = []
 
@@ -257,29 +242,19 @@ def assign_seats(
     for request in audience_requests:
         num_tickets_needed = request["num_tickets"]
         request_holder_name = request["ticket_holder_name"]
-        request_timestamp = request["timestamp"]  # This is from audience_requests
+        request_timestamp = request["timestamp"]
 
-        is_fulfilled_by_preserved = False
-        # Only attempt to match if the audience request timestamp is valid
-        if request_timestamp and request_timestamp != datetime.max:
-            request_match_key = (request_holder_name, request_timestamp)
-
-            if (
-                request_match_key in preserved_tickets_lookup
-                and preserved_tickets_lookup[request_match_key] >= num_tickets_needed
-            ):
-                # This request is considered fulfilled by preserved seats.
-                preserved_tickets_lookup[request_match_key] -= (
-                    num_tickets_needed  # "Use up" these preserved tickets
-                )
-                is_fulfilled_by_preserved = True
-                print(
-                    f"Info: Request for {request_holder_name} ({num_tickets_needed} tickets, Time: {request_timestamp.strftime('%Y/%m/%d %H:%M:%S') if request_timestamp else 'N/A'}) "
-                    f"is covered by preserved seats. Skipping new assignment."
-                )
-
-        if is_fulfilled_by_preserved:
-            continue  # Move to the next audience request
+        # Check if enough seats for this request are already preserved (by seat number)
+        preserved_count = 0
+        for block_name, assignments in assigned_seats_by_block.items():
+            for assignment in assignments:
+                if assignment["ticket_holder_name"] == request_holder_name:
+                    preserved_count += 1
+        if preserved_count >= num_tickets_needed:
+            print(
+                f"Info: Request for {request_holder_name} ({num_tickets_needed} tickets) is covered by preserved seats. Skipping new assignment."
+            )
+            continue
 
         # If not fulfilled by preserved, proceed with normal assignment logic
         assigned_for_this_request_newly = False
@@ -293,25 +268,23 @@ def assign_seats(
                         "member_name": request["member_name"],
                         "ticket_holder_name": request_holder_name,
                         "pickup_method": request["pickup_method"],
-                        "timestamp": request_timestamp,  # The audience request's timestamp
+                        "timestamp": request_timestamp,
                     }
                     temp_assigned_seats_info.append(seat_info)
-
-                # Ensure block_name exists in assigned_seats_by_block before extending
                 assigned_seats_by_block.setdefault(block_name, []).extend(
                     temp_assigned_seats_info
                 )
                 assigned_for_this_request_newly = True
                 break
-
         if not assigned_for_this_request_newly:
             unassigned_requests.append(request)
-            # print(f"Info: Could not find enough seats in the same block for '{request_holder_name}' (Time: {request_timestamp.strftime('%Y/%m/%d %H:%M:%S') if request_timestamp and request_timestamp != datetime.max else 'Invalid/Max'}) for {num_tickets_needed} tickets.")
 
     return assigned_seats_by_block, unassigned_requests, available_seats_ordered
 
 
-def format_and_print_results(assigned_seats_by_block, unassigned_requests, remaining_seats_by_block):
+def format_and_print_results(
+    assigned_seats_by_block, unassigned_requests, remaining_seats_by_block
+):
     """Formats and prints the seating assignment results."""
     print("--- Seating Assignment Results ---")
     any_seat_assigned = False
